@@ -127,7 +127,8 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/json")
-@CrossOrigin(origins = "http://localhost:5173") // Update if frontend port changes
+// @CrossOrigin(origins = "http://localhost:5173") // Update if frontend port changes
+@CrossOrigin(origins = "https://keen-alfajores-37227d.netlify.app")
 public class DashboardController {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
