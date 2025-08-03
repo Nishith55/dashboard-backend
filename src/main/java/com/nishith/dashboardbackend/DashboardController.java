@@ -141,29 +141,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.*;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/json")
-@CrossOrigin(origins = "https://keen-alfajores-37227d.netlify.app") // Update this to your deployed frontend
+@CrossOrigin(origins = "https://keen-alfajores-37227d.netlify.app") // Your frontend URL
 public class DashboardController {
 
-    private static final String BUCKET_NAME = "dashboard-jsons-file";
-    private static final Region REGION = Region.EU_NORTH_1;
-    private static final String S3_BASE_URL = "https://" + BUCKET_NAME + ".s3." + REGION.id() + ".amazonaws.com/";
+    private static final String S3_BASE_URL = "https://dashboard-jsons-file.s3.eu-north-1.amazonaws.com/";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RestTemplate restTemplate = new RestTemplate();
 
-    /**
-     * Fetch JSON file from S3 and return as parsed object
-     */
+    // ✅ Fetch any JSON file from S3
     @GetMapping("/{filename}")
     public ResponseEntity<?> getJsonFromS3(@PathVariable String filename) {
         try {
@@ -188,37 +177,28 @@ public class DashboardController {
         }
     }
 
-    /**
-     * List available .json files from the public S3 bucket (for dynamic dropdown)
-     */
+    // ✅ Fetch the list of all dashboard filenames (from files.json in S3)
     @GetMapping("/files")
-    public ResponseEntity<?> listJsonFiles() {
+    public ResponseEntity<?> getFileList() {
         try {
-            S3Client s3 = S3Client.builder()
-                    .region(REGION)
-                    .credentialsProvider(DefaultCredentialsProvider.create())
-                    .build();
+            String url = S3_BASE_URL + "files.json";
+            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
 
-            ListObjectsV2Request request = ListObjectsV2Request.builder()
-                    .bucket(BUCKET_NAME)
-                    .build();
-
-            ListObjectsV2Response result = s3.listObjectsV2(request);
-
-            List<String> filenames = result.contents().stream()
-                    .map(S3Object::key)
-                    .filter(name -> name.endsWith(".json"))
-                    .map(name -> name.replace(".json", ""))
-                    .collect(Collectors.toList());
-
-            return ResponseEntity.ok(filenames);
+            if (response.getStatusCode().is2xxSuccessful()) {
+                Object filenames = objectMapper.readValue(response.getBody(), Object.class);
+                return ResponseEntity.ok(filenames);
+            } else {
+                return ResponseEntity.status(response.getStatusCode())
+                        .body("Failed to fetch files.json");
+            }
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Failed to list S3 files: " + e.getMessage());
+                    .body("Error fetching file list: " + e.getMessage());
         }
     }
 }
+
 
 
 
