@@ -141,13 +141,22 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.*;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/json")
 @CrossOrigin(origins = "https://keen-alfajores-37227d.netlify.app") // Update this to your deployed frontend
 public class DashboardController {
 
-    private static final String S3_BASE_URL = "https://dashboard-jsons-file.s3.eu-north-1.amazonaws.com/";
+    private static final String BUCKET_NAME = "dashboard-jsons-file";
+    private static final Region REGION = Region.EU_NORTH_1;
+    private static final String S3_BASE_URL = "https://" + BUCKET_NAME + ".s3." + REGION.id() + ".amazonaws.com/";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RestTemplate restTemplate = new RestTemplate();
@@ -176,6 +185,37 @@ public class DashboardController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Error fetching or parsing file: " + e.getMessage());
+        }
+    }
+
+    /**
+     * List available .json files from the public S3 bucket (for dynamic dropdown)
+     */
+    @GetMapping("/files")
+    public ResponseEntity<?> listJsonFiles() {
+        try {
+            S3Client s3 = S3Client.builder()
+                    .region(REGION)
+                    .credentialsProvider(DefaultCredentialsProvider.create())
+                    .build();
+
+            ListObjectsV2Request request = ListObjectsV2Request.builder()
+                    .bucket(BUCKET_NAME)
+                    .build();
+
+            ListObjectsV2Response result = s3.listObjectsV2(request);
+
+            List<String> filenames = result.contents().stream()
+                    .map(S3Object::key)
+                    .filter(name -> name.endsWith(".json"))
+                    .map(name -> name.replace(".json", ""))
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(filenames);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to list S3 files: " + e.getMessage());
         }
     }
 }
