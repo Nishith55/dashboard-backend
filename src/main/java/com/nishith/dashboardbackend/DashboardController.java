@@ -144,7 +144,7 @@ import org.springframework.web.client.RestTemplate;
 
 @RestController
 @RequestMapping("/api/json")
-@CrossOrigin(origins = "https://keen-alfajores-37227d.netlify.app") // Your frontend URL
+@CrossOrigin(origins = {"http://localhost:5173", "https://keen-alfajores-37227d.netlify.app"}) // Your frontend URL
 public class DashboardController {
 
     private static final String S3_BASE_URL = "https://dashboard-jsons-file.s3.eu-north-1.amazonaws.com/";
